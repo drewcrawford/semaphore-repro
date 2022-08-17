@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::ops::BitXor;
 use std::os::raw::c_char;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver};
@@ -30,7 +31,14 @@ fn semaphore_thread(receiver: Receiver<Semaphore>,device_loader: Arc<DeviceLoade
         unsafe {
             active_semaphores = active_semaphores.drain(0..active_semaphores.len()).filter(|&semaphore| {
                 if device_loader.get_semaphore_counter_value(semaphore).unwrap() > 0 {
-                    println!("dropping semaphore {:?}",semaphore);
+                    /*
+                    It seems to reproduce this reliably we need to "do something" but not sleep.
+                     */
+                    let mut y: i32 = 256;
+                    for x in 0..10 {
+                        y = y.wrapping_add(x);
+                    }
+                    println!("{y}");
                     device_loader.destroy_semaphore(semaphore,None);
                     false
                 }
