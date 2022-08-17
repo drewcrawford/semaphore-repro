@@ -23,7 +23,7 @@ fn semaphore_thread(receiver: Receiver<Semaphore>,device_loader: Arc<DeviceLoade
         match receiver.recv_timeout(Duration::ZERO) {
             Err(..) => {},
             Ok(item) => {
-                println!("new semaphore {item:?}");
+                //println!("new semaphore {item:?}");
                 active_semaphores.push(item)
             }
         }
@@ -92,42 +92,21 @@ fn main() {
         .command_pool(command_pool);
     let command_buffer = unsafe{device_loader.allocate_command_buffers(&allocate_info).unwrap()}[0];
 
-    let buffer_size = 50_000_000;
-    let allocation_size = 100_000_000;
-    let buffer_create_info = BufferCreateInfoBuilder::new()
-        .usage(BufferUsageFlags::TRANSFER_SRC | BufferUsageFlags::TRANSFER_DST)
-        .size(buffer_size);
-
-    let buffer = unsafe{device_loader.create_buffer(&buffer_create_info, None).unwrap()};
-    let memory_allocate_info = MemoryAllocateInfoBuilder::new()
-        .allocation_size(buffer_size)
-        .memory_type_index(0); //Forgive me, I'm not checking if this is the right type to use or not
-
-    let memory = unsafe{device_loader.allocate_memory(&memory_allocate_info,None).unwrap()};
-    unsafe{device_loader.bind_buffer_memory(buffer, memory, 0)}.unwrap();
     unsafe {
         let begin_info = CommandBufferBeginInfoBuilder::new()
             .flags(CommandBufferUsageFlags::SIMULTANEOUS_USE);
 
         device_loader.begin_command_buffer(command_buffer, &begin_info).unwrap();
-        let region = BufferCopyBuilder::new()
-            .size(buffer_size - 1)
-            .src_offset(0)
-            .dst_offset(1);
-        let regions = [region];
-        // device_loader.cmd_copy_buffer(command_buffer, buffer, buffer, &regions);
-        // device_loader.cmd_pipeline_barrier(command_buffer, PipelineStageFlags::all(), PipelineStageFlags::all(), DependencyFlags::empty(), &[], &[], &[]);
         device_loader.end_command_buffer(command_buffer).unwrap();
     }
     let mut fences = Vec::new();
-    for i in 0..10 {
+    for i in 0..4 {
         let fence_info = FenceCreateInfoBuilder::new()
             .flags(FenceCreateFlags::SIGNALED);
         fences.push(unsafe{device_loader.create_fence(&fence_info,None).unwrap()});
     }
     let mut current_frame = 0;
     let binary_info = SemaphoreCreateInfoBuilder::new();
-    let binary_semaphore = unsafe{device_loader.create_semaphore(&binary_info,None).unwrap()};
     loop {
         unsafe{device_loader.wait_for_fences(&[fences[current_frame]], false, u64::MAX).unwrap()};
         unsafe{device_loader.reset_fences(&[fences[current_frame]]).unwrap()}
@@ -143,7 +122,6 @@ fn main() {
         let buffers = [command_buffer];
         let semaphores = [semaphore];
         let mut submit_info = SubmitInfoBuilder::new()
-            .wait_semaphores(&[])
             .command_buffers(&buffers)
             .signal_semaphores(&semaphores);
         let timeline_info = TimelineSemaphoreSubmitInfoBuilder::new()
